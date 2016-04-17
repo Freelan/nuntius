@@ -1,4 +1,5 @@
 #include <iostream>
+#include <curses.h>
 #include <SFML/Network.hpp>
 
 void sendMessage( sf::TcpSocket& socket, std::string message )
@@ -10,10 +11,18 @@ void sendMessage( sf::TcpSocket& socket, std::string message )
 
 std::string receiveMessage( sf::TcpSocket& socket )
 {
-    sf::Packet packet;
     std::string message;
-    socket.receive( packet );
-    packet >> message;
+    sf::SocketSelector selector;
+    selector.add( socket );
+    if( selector.wait( sf::seconds( 2 ) ) )
+    {
+        if( selector.isReady( socket ) )
+        {
+            sf::Packet packet;
+            socket.receive( packet );
+            packet >> message;
+        }
+    }
 
     return message;
 }
@@ -22,7 +31,7 @@ void Disconnect( sf::TcpSocket& socket )
 {
     sendMessage( socket, "kill" );
 
-    std::cout << "Disconnecting..." << std::endl;
+    printw("Disconnecting...\n");
     socket.disconnect();
 }
 
@@ -30,21 +39,22 @@ void action( sf::TcpSocket& socket )
 {
     while( true )
     {
-        std::cout << "[1] Wyslij wiadomosc" << std::endl
-             << "[2] Rozlacz" << std::endl;
-        int choice;
-        std::cin >> choice;
-        switch( choice )
+        //printw("%s\n", receiveMessage( socket ) );
+        printw("[1] Wyslij wiadomosc\n"
+               "[2] Rozlacz\n");
+        char choice;
+        switch( choice = getch() )
         {
-            case 1:
+            case '1':
             {
-                std::string message;
-                //getline( std::cin, message );
-                std::cin >> message;
+                char message[70];
+                echo();
+                getstr( message );
+                noecho();
                 sendMessage( socket, message );
                 break;
             }
-            case 2:
+            case '2':
             {
                 Disconnect( socket );
                 goto loopEnd;
@@ -53,51 +63,55 @@ void action( sf::TcpSocket& socket )
         }
     }
     loopEnd:
-    std::cout << "duh?" << std::endl;
+    printw("duh?\n");
 }
 
 void Connect( sf::TcpSocket& socket, std::string ip, int port )
 {
     if( socket.connect( ip, port ) != sf::Socket::Done )
     {
-        std::cout << "Nie można połączyć się z " << ip << std::endl;
+        printw( "Nie można połączyć się z %s\n", ip );
         exit( 1 );
     }
 
-    std::cout << receiveMessage( socket ) << std::endl;
+    printw("%s\n", receiveMessage( socket ) );
 }
 
 int main()
 {
+    initscr();
+    noecho();
     // ----- The client -----
     sf::TcpSocket socket;
 
-    std::cout << " - NUNTIUS - " << std::endl << std::endl
-         << "[1] Połącz z localhost" << std::endl
-         << "[2] Inny" << std::endl;
-    int choice;
+    printw(" - NUNTIUS - \n\n"
+           "[1] Polacz z localhost\n"
+           "[2] Inny\n");
+    char choice;
 
     while( true )
     {
-    std::cout << "?" << std::endl;
-    std::cin >> choice;
-    switch( choice )
-    {
-        case 1:
+        printw("?\n");
+        switch( choice = getch() )
         {
-            Connect( socket, "127.0.0.1", 55001 );
-            action( socket );
-            break;
-        }
-        case 2:
-        {
-            std::string ip;
-            std::cin >> ip;
-            Connect( socket, ip, 55001 );
-            action( socket );
-            break;
+            case '1':
+            {
+                Connect( socket, "127.0.0.1", 55001 );
+                action( socket );
+                break;
+            }
+            case '2':
+            {
+                char ip[30];
+                echo();
+                getstr( ip );
+                noecho();
+                Connect( socket, ip, 55001 );
+                action( socket );
+                break;
+            }
         }
     }
-    }
+    endwin();
     return 0;
 }
