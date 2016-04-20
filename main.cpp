@@ -16,23 +16,16 @@ std::string receiveMessage( sf::TcpSocket& socket )
     sf::SocketSelector selector;
     selector.add( socket );
     socket.setBlocking(false);
-    //if( selector.wait( sf::seconds( 2 ) ) )
+    if( socket.receive( packet ) == sf::Socket::Done )
     {
-        //if( selector.isReady( socket ) )
-        {
-            if( socket.receive( packet ) == sf::Socket::Done )
-            {
-                packet >> message;
-                socket.setBlocking(true);
-                return message;
-            }else
-            {
-                socket.setBlocking(true);
-                return "whoops!";
-            }
-        }
+         packet >> message;
+         socket.setBlocking(true);
+         return message;
+    }else
+    {
+         socket.setBlocking(true);
+         return "whoops!";
     }
-
 }
 
 void Disconnect( sf::TcpSocket& socket )
@@ -51,9 +44,10 @@ void action( sf::TcpSocket& socket )
     {
         nodelay( stdscr, TRUE );
 
+        std::string incomingIp = receiveMessage( socket );
         std::string incomingMessage = receiveMessage( socket );
         if( incomingMessage != "whoops!" )
-            printw("\r[%s]\n", incomingMessage.c_str() );
+            printw("\r[%s] %s\n", incomingIp.c_str(), incomingMessage.c_str() );
 
         printw("\r>");
         char choice = getch();
@@ -78,7 +72,6 @@ void action( sf::TcpSocket& socket )
                 break;
             }
         }
-
     }
 loopEnd:
     printw( "OKI\n");
@@ -87,14 +80,17 @@ loopEnd:
 
 void Connect( sf::TcpSocket& socket, std::string ip, int port )
 {
+    std::string incomingMessage;
     if( socket.connect( ip, port ) != sf::Socket::Done )
     {
         printw( "Can't connect to %s\n", ip.c_str() );
+    }else
+    {
+        incomingMessage = receiveMessage( socket );
+        if( incomingMessage != "whoops!" )
+            printw("[%s]\n", incomingMessage.c_str() );
+        action( socket );
     }
-
-    std::string incomingMessage = receiveMessage( socket );
-    if( incomingMessage != "whoops!" )
-        printw("[%s]\n", incomingMessage.c_str() );
 }
 
 int main()
@@ -108,7 +104,8 @@ int main()
     printw(" - NUNTIUS - \n\n"
            "[1] localhost\n"
            "[2] 89.40.127.246\n"
-           "[3] Other\n");
+           "[3] Other\n"
+           "[q] Quit\n");
     char choice;
 
     while( true )
@@ -119,13 +116,11 @@ int main()
             case '1':
             {
                 Connect( socket, "127.0.0.1", 55001 );
-                action( socket );
                 break;
             }
             case '2':
             {
                 Connect( socket, "89.40.127.246", 55001 );
-                action( socket );
                 break;
             }
             case '3':
@@ -135,7 +130,11 @@ int main()
                 getstr( ip );
                 noecho();
                 Connect( socket, ip, 55001 );
-                action( socket );
+                break;
+            }
+            case 'q':
+            {
+                return 0;
                 break;
             }
         }
