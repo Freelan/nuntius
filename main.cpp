@@ -2,6 +2,7 @@
 #include <curses.h>
 #include <SFML/Network.hpp>
 
+
 void sendMessage( sf::TcpSocket& socket, std::string message )
 {
     sf::Packet packet;
@@ -13,18 +14,14 @@ std::string receiveMessage( sf::TcpSocket& socket )
 {
     std::string message;
     sf::Packet packet;
-    sf::SocketSelector selector;
-    selector.add( socket );
-    socket.setBlocking(false);
+
     if( socket.receive( packet ) == sf::Socket::Done )
     {
          packet >> message;
-//         socket.setBlocking(true);
          return message;
     }else
     {
-//         socket.setBlocking(true);
-         return "whoops!";
+        return "whoops!";
     }
 }
 
@@ -33,45 +30,59 @@ void Disconnect( sf::TcpSocket& socket )
     sendMessage( socket, "kill" );
 
     printw("\rDisconnecting...\n");
+    refresh();
+
     socket.disconnect();
 }
 
 void action( sf::TcpSocket& socket )
 {
-    printw("\n\n[enter] Send message\n"
+    printw("\n[enter] Send message\n"
            "[2] Disconnect\n\n");
+    refresh();
+
+    socket.setBlocking(false);
+
+    sf::Packet incomingMessages;
+    std::string incomingIp;
+    std::string incomingMessage;
+
     while( true )
     {
         nodelay( stdscr, TRUE );
 
-        std::string incomingIp = receiveMessage( socket );
-        std::string incomingMessage = receiveMessage( socket );
-        if( incomingMessage != "whoops!" && incomingIp != "whoops!" )
-            printw("\r[%s] %s\n", incomingIp.c_str(), incomingMessage.c_str() );
-
-        printw("\r>");
-        char choice = getch();
-        switch( choice )
+        if( socket.receive( incomingMessages ) == sf::Socket::Done )
         {
-            case 10:
-            {
-                nodelay( stdscr, FALSE );
-                char message[70];
-                echo();
-                printw(">> ");
-                getstr( message );
-                noecho();
-                sendMessage( socket, message );
-                nodelay( stdscr, TRUE );
-                break;
-            }
-            case '2':
-            {
-                Disconnect( socket );
-                goto loopEnd;
-                break;
-            }
+            incomingMessages >> incomingIp >> incomingMessage;
+            //if( incomingMessage != "whoops!" )//&& incomingIp != "whoops!" )
+            printw("\r[%s] %s\n", incomingIp.c_str(), incomingMessage.c_str() );
+            refresh();
         }
+            printw("\r>");
+            refresh();
+            char choice = getch();
+            switch( choice )
+            {
+                case 10:
+                {
+                    nodelay( stdscr, FALSE );
+                    char message[70];
+                    echo();
+                    printw(">> ");
+                    refresh();
+                    getstr( message );
+                    noecho();
+                    sendMessage( socket, message );
+                    nodelay( stdscr, TRUE );
+                    break;
+                }
+                case '2':
+                {
+                    Disconnect( socket );
+                    goto loopEnd;
+                    break;
+                }
+            }
     }
 loopEnd:
     printw( "OKI\n");
@@ -80,16 +91,20 @@ loopEnd:
 
 void Connect( sf::TcpSocket& socket, std::string ip, int port )
 {
-    std::string incomingMessage;
     if( socket.connect( ip, port ) != sf::Socket::Done )
     {
         printw( "Can't connect to %s\n", ip.c_str() );
+        refresh();
     }else
     {
-        incomingMessage = receiveMessage( socket );
-        if( incomingMessage != "whoops!" )
-            printw("[%s]\n", incomingMessage.c_str() );
-        action( socket );
+        socket.setBlocking(true);
+        std::string connectionMessage = receiveMessage( socket );
+        if( connectionMessage != "whoops!" )
+        {
+            printw("\n%s\n", connectionMessage.c_str() );
+            refresh();
+            action( socket );
+        }
     }
 }
 
@@ -106,6 +121,7 @@ int main()
            "[2] 89.40.127.246\n"
            "[3] Other\n"
            "[q] Quit\n");
+    refresh();
     char choice;
 
     while( true )
