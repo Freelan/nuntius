@@ -19,11 +19,11 @@ std::string receiveMessage( sf::TcpSocket& socket )
     if( socket.receive( packet ) == sf::Socket::Done )
     {
          packet >> message;
-         socket.setBlocking(true);
+//         socket.setBlocking(true);
          return message;
     }else
     {
-         socket.setBlocking(true);
+//         socket.setBlocking(true);
          return "whoops!";
     }
 }
@@ -46,7 +46,7 @@ void action( sf::TcpSocket& socket )
 
         std::string incomingIp = receiveMessage( socket );
         std::string incomingMessage = receiveMessage( socket );
-        if( incomingMessage != "whoops!" )
+        if( incomingMessage != "whoops!" && incomingIp != "whoops!" )
             printw("\r[%s] %s\n", incomingIp.c_str(), incomingMessage.c_str() );
 
         printw("\r>");
