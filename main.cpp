@@ -15,7 +15,7 @@ int main()
 {
     // ----- The client -----
     initscr();
-    cbreak();
+    //cbreak();
     curs_set(0);
     noecho();
 
@@ -122,15 +122,12 @@ int main()
 void action( sf::TcpSocket& socket )
 {
     Window messagesScreen( getmaxy(stdscr)-10, getmaxx(stdscr)-2, 5, 1 );
-
-    //scrollok( messagesScreen.window, TRUE );
-
     Window inputScreen( 4, getmaxx(stdscr)-2, getmaxy(stdscr)-5, 1 );
 
     messagesScreen.draw();
     inputScreen.draw();
 
-    socket.setBlocking(false);
+    socket.setBlocking( false );
 
     sf::Packet incomingMessages;
     std::string incomingIp;
@@ -143,6 +140,8 @@ void action( sf::TcpSocket& socket )
         if( socket.receive( incomingMessages ) == sf::Socket::Done )
         {
             incomingMessages >> incomingIp >> incomingMessage;
+
+            scrollok( messagesScreen.window, TRUE );
 
             wprintw( messagesScreen.window, "\n " );
             messagesScreen.drawBorder();
